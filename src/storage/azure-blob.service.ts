@@ -1,4 +1,5 @@
 import {
+  BlobSASPermissions,
   BlobServiceClient,
   ContainerClient,
 } from '@azure/storage-blob';
@@ -43,9 +44,7 @@ export class AzureBlobService implements OnModuleInit {
       BlobServiceClient.fromConnectionString(connectionString);
     this.containerClient = serviceClient.getContainerClient(containerName);
 
-    const created = await this.containerClient.createIfNotExists({
-      access: 'blob',
-    });
+    const created = await this.containerClient.createIfNotExists();
     if (created.succeeded) {
       this.logger.log(`Created blob container "${containerName}"`);
     }
@@ -59,7 +58,12 @@ export class AzureBlobService implements OnModuleInit {
       blobHTTPHeaders: { blobContentType: file.mimetype },
     });
 
-    return { blobName, url: blockBlobClient.url };
+    const sasUrl = await blockBlobClient.generateSasUrl({
+      permissions: BlobSASPermissions.parse('r'),
+      expiresOn: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+    });
+
+    return { blobName, url: sasUrl };
   }
 
   async delete(blobName: string): Promise<void> {
