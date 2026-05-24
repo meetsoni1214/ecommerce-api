@@ -36,6 +36,23 @@ npm run start:dev
 
 The API listens on `http://localhost:3000`.
 
+## Run with Docker
+
+The full stack (API + Postgres + Azurite) can be run with one command. Compose
+ships with working defaults for the API container, so no `.env` is required.
+
+```bash
+docker compose up --build
+```
+
+The API container runs `prisma migrate deploy` at startup, so the database is
+ready on first boot. A liveness endpoint is exposed at `GET /health`.
+
+The Compose-mode environment for the API service is set directly in
+`docker-compose.yml` so the local `.env` (which targets host-mode `localhost`)
+does not interfere. To point the container at a real database or storage
+account, edit the `environment:` block in `docker-compose.yml`.
+
 ## Environment variables
 
 See `.env.example`. The default Azurite connection string and key are hardcoded for the emulator and are safe for local dev only — replace with a real Azure Storage account connection string in production.
