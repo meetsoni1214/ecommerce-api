@@ -41,6 +41,9 @@ importers:
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
+      prisma:
+        specifier: ^5.8.0
+        version: 5.22.0
       reflect-metadata:
         specifier: ^0.2.1
         version: 0.2.2
@@ -60,9 +63,6 @@ importers:
       '@types/node':
         specifier: ^20.10.6
         version: 20.19.41
-      prisma:
-        specifier: ^5.8.0
-        version: 5.22.0
       ts-loader:
         specifier: ^9.5.1
         version: 9.5.7(typescript@5.9.3)(webpack@5.97.1)
