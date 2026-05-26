@@ -1,0 +1,75 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: azurite-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: azurite
+  namespace: default
+spec:
+  type: ClusterIP
+  selector:
+    app: azurite
+  ports:
+    - name: blob
+      port: 10000
+      targetPort: 10000
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: azurite
+  namespace: default
+  labels:
+    app: azurite
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: azurite
+  template:
+    metadata:
+      labels:
+        app: azurite
+    spec:
+      containers:
+        - name: azurite
+          image: mcr.microsoft.com/azure-storage/azurite:latest
+          args:
+            - azurite-blob
+            - --blobHost
+            - 0.0.0.0
+            - --blobPort
+            - "10000"
+            - --location
+            - /data
+            - --skipApiVersionCheck
+            - --disableProductStyleUrl
+          ports:
+            - containerPort: 10000
+              name: blob
+          volumeMounts:
+            - name: azurite-data
+              mountPath: /data
+          readinessProbe:
+            tcpSocket:
+              port: 10000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: azurite-data
+          persistentVolumeClaim:
+            claimName: azurite-pvc
