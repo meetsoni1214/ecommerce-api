@@ -75,11 +75,9 @@ metadata:
   name: ecommerce-api-service
   namespace: default
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   selector:
     app: ecommerce-depl
   ports:
-    - protocol: TCP
-      port: 3000
+    - port: 80
       targetPort: 3000
-      nodePort: 30000
