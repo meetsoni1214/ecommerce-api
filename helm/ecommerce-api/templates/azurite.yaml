@@ -1,0 +1,92 @@
+{{- if .Values.azurite.enabled }}
+{{- if .Values.azurite.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "ecommerce-api.azurite.fullname" . }}
+  labels:
+    {{- include "ecommerce-api.labels" . | nindent 4 }}
+    app.kubernetes.io/component: azurite
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- if .Values.azurite.persistence.storageClassName }}
+  storageClassName: {{ .Values.azurite.persistence.storageClassName }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.azurite.persistence.size }}
+---
+{{- end }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "ecommerce-api.azurite.fullname" . }}
+  labels:
+    {{- include "ecommerce-api.labels" . | nindent 4 }}
+    app.kubernetes.io/component: azurite
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "ecommerce-api.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: azurite
+  ports:
+    - name: blob
+      port: {{ .Values.azurite.service.port }}
+      targetPort: blob
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ecommerce-api.azurite.fullname" . }}
+  labels:
+    {{- include "ecommerce-api.labels" . | nindent 4 }}
+    app.kubernetes.io/component: azurite
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "ecommerce-api.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: azurite
+  template:
+    metadata:
+      labels:
+        {{- include "ecommerce-api.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: azurite
+    spec:
+      containers:
+        - name: azurite
+          image: "{{ .Values.azurite.image.repository }}:{{ .Values.azurite.image.tag }}"
+          imagePullPolicy: {{ .Values.azurite.image.pullPolicy }}
+          args:
+            - azurite-blob
+            - --blobHost
+            - 0.0.0.0
+            - --blobPort
+            - "{{ .Values.azurite.service.port }}"
+            - --location
+            - /data
+            - --skipApiVersionCheck
+            - --disableProductStyleUrl
+          ports:
+            - name: blob
+              containerPort: {{ .Values.azurite.service.port }}
+          {{- if .Values.azurite.persistence.enabled }}
+          volumeMounts:
+            - name: azurite-data
+              mountPath: /data
+          {{- end }}
+          readinessProbe:
+            tcpSocket:
+              port: blob
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      {{- if .Values.azurite.persistence.enabled }}
+      volumes:
+        - name: azurite-data
+          persistentVolumeClaim:
+            claimName: {{ include "ecommerce-api.azurite.fullname" . }}
+      {{- end }}
+{{- end }}

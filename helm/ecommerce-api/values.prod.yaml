@@ -1,0 +1,53 @@
+replicaCount: 2
+
+image:
+  repository: <ACR_NAME>.azurecr.io/ecommerce-api
+  tag: <IMAGE_TAG>
+  pullPolicy: IfNotPresent
+
+postgresql:
+  enabled: false
+
+azurite:
+  enabled: false
+
+secrets:
+  create: false
+  existingSecret: ecommerce-api-secrets
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+  hosts:
+    - host: api.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop:
+      - ALL
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70

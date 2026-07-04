@@ -1,0 +1,166 @@
+# Kubernetes manifest for ecommerce-api on AKS.
+#
+# Before applying:
+#   1. Replace <ACR_NAME> with your Azure Container Registry name.
+#   2. Replace <IMAGE_TAG> with the image tag you pushed.
+#   3. Replace placeholder values in the Secret (DATABASE_URL, AZURE_STORAGE_CONNECTION_STRING).
+#   4. Replace api.example.com in the Ingress with your real hostname.
+#
+# Apply with:
+#   kubectl apply -f k8s/manifest.yaml
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ecommerce-api
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ecommerce-api-secrets
+  namespace: ecommerce-api
+type: Opaque
+stringData:
+  DATABASE_URL: "postgresql://USER:PASSWORD@HOST:5432/ecommerce?schema=public&sslmode=require"
+  AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=https;AccountName=YOUR_ACCOUNT;AccountKey=YOUR_KEY;EndpointSuffix=core.windows.net"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ecommerce-api-config
+  namespace: ecommerce-api
+data:
+  PORT: "3000"
+  AZURE_STORAGE_CONTAINER: "product-images"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ecommerce-api
+  namespace: ecommerce-api
+  labels:
+    app: ecommerce-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ecommerce-api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: ecommerce-api
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: api
+          image: <ACR_NAME>.azurecr.io/ecommerce-api:<IMAGE_TAG>
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: ecommerce-api-config
+            - secretRef:
+                name: ecommerce-api-secrets
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop: ["ALL"]
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ecommerce-api
+  namespace: ecommerce-api
+  labels:
+    app: ecommerce-api
+spec:
+  type: ClusterIP
+  selector:
+    app: ecommerce-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ecommerce-api
+  namespace: ecommerce-api
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: api.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ecommerce-api
+                port:
+                  number: 80
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ecommerce-api
+  namespace: ecommerce-api
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ecommerce-api
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

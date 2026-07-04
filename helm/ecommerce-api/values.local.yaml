@@ -1,0 +1,18 @@
+replicaCount: 1
+
+image:
+  repository: ecommerce-learn-api
+  tag: latest
+  pullPolicy: Never
+
+postgresql:
+  enabled: true
+
+azurite:
+  enabled: true
+
+ingress:
+  enabled: false
+
+autoscaling:
+  enabled: false

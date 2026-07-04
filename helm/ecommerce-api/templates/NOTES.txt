@@ -1,0 +1,10 @@
+Release {{ .Release.Name }} installed.
+
+Local access with ClusterIP:
+  kubectl port-forward service/{{ include "ecommerce-api.fullname" . }} 3000:{{ .Values.service.port }}
+  curl http://localhost:3000/health
+
+Useful checks:
+  kubectl get pods -l app.kubernetes.io/instance={{ .Release.Name }}
+  kubectl get svc -l app.kubernetes.io/instance={{ .Release.Name }}
+  kubectl logs -l app.kubernetes.io/name={{ include "ecommerce-api.name" . }},app.kubernetes.io/instance={{ .Release.Name }},app.kubernetes.io/component=api
