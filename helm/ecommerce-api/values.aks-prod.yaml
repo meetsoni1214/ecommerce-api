@@ -1,0 +1,38 @@
+replicaCount: 1
+
+image:
+  repository: learnk8snow.azurecr.io/ecommerce-api
+  tag: v1
+  pullPolicy: IfNotPresent
+
+postgresql:
+  enabled: false
+
+azurite:
+  enabled: false
+
+secrets:
+  create: false
+  existingSecret: ecommerce-api-secrets
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+  hosts:
+    - host: ecommerce-api.20.204.215.164.nip.io
+      paths:
+        - path: /
+          pathType: Prefix
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: false

@@ -1,0 +1,13 @@
+image:
+  repository: learnk8snow.azurecr.io/ecommerce-api
+  tag: v1
+  pullPolicy: IfNotPresent
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: ecommerce-api.20.204.215.164.nip.io
+      paths:
+        - path: /
+          pathType: Prefix

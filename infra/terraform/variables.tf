@@ -37,3 +37,16 @@ variable "key_vault_name" {
   description = "Existing Azure Key Vault name."
   type        = string
 }
+
+
+variable "kubeconfig_path" {
+  description = "Path to kubeconfig used by the Helm provider."
+  type        = string
+  default     = "~/.kube/config"
+}
+
+variable "kube_context" {
+  description = "Optional kubeconfig context. Null uses the current context."
+  type        = string
+  default     = null
+}
