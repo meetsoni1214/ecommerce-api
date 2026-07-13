@@ -63,6 +63,12 @@ Apply intentional changes with:
 terraform apply
 ```
 
+## Continuous integration
+
+The GitHub Actions workflow at `.github/workflows/terraform.yml` checks Terraform changes on pull requests and pushes to `main`. It runs formatting and configuration validation only; it does not authenticate to Azure, read remote state, produce a plan, or apply changes.
+
+The validation job initializes providers with `-backend=false` and uses the committed dependency lock file, so it can run without Azure credentials.
+
 ## Useful outputs
 
 ```bash
