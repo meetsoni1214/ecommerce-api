@@ -7,5 +7,9 @@ acr_name               = "learnk8snow"
 postgresql_server_name = "learn-aks-db"
 storage_account_name   = "learnaksbs"
 key_vault_name         = "learn-aks-kv"
+
+github_repository  = "meetsoni1214/ecommerce-api"
+github_environment = "production"
+
 # Optional if your current kube context is already ecommerce-api.
 kube_context = "ecommerce-api"

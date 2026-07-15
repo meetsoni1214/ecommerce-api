@@ -15,6 +15,8 @@ The resources were created manually first, then imported into Terraform one by o
 - PostgreSQL `ecommerce` database
 - PostgreSQL firewall rule for Azure services
 - `ingress-nginx` Helm release
+- GitHub Actions publisher and deployer identities
+- GitHub OIDC federation and least-privilege role assignments
 
 The `ecommerce-api` Helm release is intentionally managed outside Terraform. The application delivery pipeline owns that release so image deployments do not conflict with Terraform's infrastructure lifecycle.
 
@@ -70,6 +72,16 @@ The GitHub Actions workflow at `.github/workflows/terraform.yml` checks Terrafor
 
 The validation job initializes providers with `-backend=false` and uses the committed dependency lock file, so it can run without Azure credentials.
 
+## Application delivery
+
+The workflow at `.github/workflows/deploy.yml` builds the application image from `main`, tags it with the full Git commit SHA, and publishes it to ACR.
+
+The publisher identity can push to ACR but cannot deploy to AKS. The deployer identity can retrieve AKS user credentials but cannot push images. Azure trusts short-lived GitHub OIDC tokens, so no Azure client secret is stored in GitHub.
+
+The deploy job uses the protected GitHub `production` environment. After approval, Helm deploys the already-published image with atomic rollback and verifies the public health endpoint.
+
+The identity client IDs are Terraform outputs and GitHub Actions variables. Client IDs identify an Azure principal but are not authentication secrets.
+
 ## Useful outputs
 
 ```bash
@@ -83,14 +95,3 @@ Do not commit `terraform.tfvars`, `.terraform/`, plan files, or local state back
 Application secrets still live outside Terraform for now. The Kubernetes secret `ecommerce-api-secrets` is managed manually and consumed by the Helm release through `secrets.existingSecret`.
 
 External Secrets / Key Vault sync was intentionally deferred and can be added later as a separate learning step.
-
-1. Add Terraform CI
-   - Run terraform fmt -check and terraform validate on every pull request.
-   - Later add terraform plan using GitHub Actions and Azure OIDC.
-   - Keep terraform apply manual initially.
-
-2. Automate application releases
-   - Build the Docker image.
-   - Push it to ACR.
-   - Deploy a specific image tag through Helm.
-   - Avoid relying on the permanently hardcoded v1 tag.

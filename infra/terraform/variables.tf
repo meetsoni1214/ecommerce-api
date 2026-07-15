@@ -38,6 +38,17 @@ variable "key_vault_name" {
   type        = string
 }
 
+variable "github_repository" {
+  description = "GitHub repository allowed to request Azure OIDC tokens."
+  type        = string
+  default     = "meetsoni1214/ecommerce-api"
+}
+
+variable "github_environment" {
+  description = "GitHub environment allowed to deploy the application."
+  type        = string
+  default     = "production"
+}
 
 variable "kubeconfig_path" {
   description = "Path to kubeconfig used by the Helm provider."

@@ -27,3 +27,13 @@ output "key_vault_uri" {
   description = "Existing Key Vault URI."
   value       = data.azurerm_key_vault.app.vault_uri
 }
+
+output "github_actions_publisher_client_id" {
+  description = "Client ID used by GitHub Actions to publish images to ACR."
+  value       = azurerm_user_assigned_identity.github_publisher.client_id
+}
+
+output "github_actions_deployer_client_id" {
+  description = "Client ID used by the approved GitHub production deployment."
+  value       = azurerm_user_assigned_identity.github_deployer.client_id
+}
