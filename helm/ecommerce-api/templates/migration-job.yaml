@@ -7,8 +7,8 @@ metadata:
     {{- include "ecommerce-api.labels" . | nindent 4 }}
   {{- if .Values.migrationJob.useHelmHook }}
   annotations:
-    helm.sh/hook: post-install,post-upgrade
-    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+    helm.sh/hook: {{ .Values.migrationJob.hookEvents | quote }}
+    helm.sh/hook-delete-policy: before-hook-creation
   {{- end }}
 spec:
   backoffLimit: {{ .Values.migrationJob.backoffLimit }}
@@ -34,13 +34,13 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command:
-            - npx
-            - prisma
+            - ./node_modules/.bin/prisma
             - migrate
             - deploy
-          envFrom:
-            - configMapRef:
-                name: {{ include "ecommerce-api.fullname" . }}-config
-            - secretRef:
-                name: {{ include "ecommerce-api.secretName" . }}
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ecommerce-api.secretName" . }}
+                  key: DATABASE_URL
 {{- end }}

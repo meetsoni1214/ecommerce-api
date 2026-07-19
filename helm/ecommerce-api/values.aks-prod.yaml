@@ -36,3 +36,8 @@ resources:
 
 autoscaling:
   enabled: false
+
+migrationJob:
+  enabled: true
+  hookEvents: pre-install,pre-upgrade
+  backoffLimit: 1

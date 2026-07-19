@@ -93,4 +93,5 @@ autoscaling:
 migrationJob:
   enabled: false
   useHelmHook: true
+  hookEvents: post-install,post-upgrade
   backoffLimit: 3

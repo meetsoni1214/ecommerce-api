@@ -27,13 +27,29 @@ services:
     volumes:
       - azurite-data:/data
 
-  api:
+  migrate:
     build: .
-    container_name: ecommerce-api
-    restart: unless-stopped
+    image: ecommerce-api:local
+    container_name: ecommerce-migrate
+    restart: "no"
     depends_on:
       postgres:
         condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/ecommerce?schema=public"
+    command:
+      - ./node_modules/.bin/prisma
+      - migrate
+      - deploy
+
+  api:
+    build: .
+    image: ecommerce-api:local
+    container_name: ecommerce-api
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
       azurite:
         condition: service_started
     environment:
