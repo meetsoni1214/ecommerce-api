@@ -18,7 +18,8 @@ inside the cluster; nothing depends on external managed services.
 | `postgres-secret.yaml` | DB credentials (`POSTGRES_USER`/`PASSWORD`/`DB`) |
 | `postgres-configmap.yaml` | Non-sensitive DB connection bits (`POSTGRES_HOST`, `POSTGRES_PORT`) |
 | `azurite.yaml` | Azurite PVC + Service + Deployment (in-cluster blob storage) |
-| `deployment.yaml` | `ecommerce-api` Deployment + `LoadBalancer` Service |
+| `migration-job.yaml` | One-time Prisma migration Job |
+| `deployment.yaml` | `ecommerce-api` Deployment + `ClusterIP` Service |
 
 All resources live in the `default` namespace.
 
@@ -44,17 +45,32 @@ eval "$(minikube docker-env)"
 docker build -t ecommerce-learn-api:latest .
 ```
 
-### 2. Apply the manifests
+### 2. Start dependencies and run migrations
 
 ```bash
-kubectl apply -f k8s/
+kubectl apply \
+  -f k8s/postgres-secret.yaml \
+  -f k8s/postgres-configmap.yaml \
+  -f k8s/postgres.yaml \
+  -f k8s/azurite.yaml
+
+kubectl rollout status deployment/postgres
+
+kubectl delete job ecommerce-migrate --ignore-not-found
+kubectl apply -f k8s/migration-job.yaml
+kubectl wait --for=condition=complete job/ecommerce-migrate --timeout=120s
+kubectl logs job/ecommerce-migrate
 ```
 
-This brings up Postgres, Azurite, and the API. The API pod uses an
-initContainer to wait for Postgres before starting; migrations
-(`prisma migrate deploy`) run on container start via `entrypoint.sh`.
+The migration Job must complete successfully before starting the API.
 
-### 3. Verify
+### 3. Start the API
+
+```bash
+kubectl apply -f k8s/deployment.yaml -f k8s/ingress.yaml
+```
+
+### 4. Verify
 
 ```bash
 # Watch pods come up
@@ -64,21 +80,13 @@ kubectl get pods -w
 kubectl logs -l app=ecommerce-depl -f
 ```
 
-### 4. Reach the API
+### 5. Reach the API
 
-The Service is `type: LoadBalancer` with `nodePort: 30000`. On minikube
-the `LoadBalancer` IP stays `<pending>` unless `minikube tunnel` is
-running, so the simplest paths are:
+The Service is `ClusterIP`, so use a local port-forward:
 
 ```bash
-# Option A — print a reachable URL
-minikube service ecommerce-api-service --url
-
-# Option B — hit the NodePort directly
-curl http://$(minikube ip):30000/health
-
-# Option C — provision a real EXTERNAL-IP (run in a separate terminal)
-minikube tunnel
+kubectl port-forward service/ecommerce-api-service 3000:80
+curl http://localhost:3000/health
 ```
 
 ## Rolling out a new version
@@ -87,6 +95,12 @@ minikube tunnel
 # Rebuild into minikube
 eval "$(minikube docker-env)"
 docker build -t ecommerce-learn-api:latest .
+
+# Apply pending migrations before updating the API
+kubectl delete job ecommerce-migrate --ignore-not-found
+kubectl apply -f k8s/migration-job.yaml
+kubectl wait --for=condition=complete job/ecommerce-migrate --timeout=120s
+kubectl logs job/ecommerce-migrate
 
 # Force the Deployment to pick up the new image
 kubectl rollout restart deployment/ecommerce-depl
@@ -114,9 +128,16 @@ kubectl run -it --rm azcli --image=mcr.microsoft.com/azure-cli --restart=Never -
 ## Teardown
 
 ```bash
-kubectl delete -f k8s/      # remove all workloads + PVCs
-minikube stop               # stop the cluster (preserves state)
-minikube delete             # nuke the cluster entirely
+kubectl delete \
+  -f k8s/ingress.yaml \
+  -f k8s/deployment.yaml \
+  -f k8s/migration-job.yaml \
+  -f k8s/azurite.yaml \
+  -f k8s/postgres.yaml \
+  -f k8s/postgres-configmap.yaml \
+  -f k8s/postgres-secret.yaml
+minikube stop
+minikube delete
 ```
 
 ## Notes
@@ -125,10 +146,9 @@ minikube delete             # nuke the cluster entirely
   into minikube's Docker daemon (`eval $(minikube docker-env)`). There
   is no registry involved. If you switch to a remote registry, drop
   `imagePullPolicy: Never` from `deployment.yaml`.
-- **Migrations.** `entrypoint.sh` runs `prisma migrate deploy` on every
-  pod startup. Prisma's advisory lock makes this safe even with multiple
-  replicas, but for cleaner ops you can split migrations into a `Job`
-  or `initContainer`.
+- **Migrations.** `migration-job.yaml` runs `prisma migrate deploy`
+  before the API Deployment is installed or restarted. API pod restarts
+  do not run migrations.
 - **Azurite credentials are public.** The `AccountName=devstoreaccount1`
   and `AccountKey=Eby8…` values are the well-known Azurite dev
   credentials, published in Microsoft's docs. They are not secrets;

@@ -16,3 +16,6 @@ ingress:
 
 autoscaling:
   enabled: false
+
+migrationJob:
+  enabled: true

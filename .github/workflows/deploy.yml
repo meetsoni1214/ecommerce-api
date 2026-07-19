@@ -10,7 +10,6 @@ on:
       - ".github/workflows/deploy.yml"
       - ".dockerignore"
       - "Dockerfile"
-      - "entrypoint.sh"
       - "package.json"
       - "pnpm-lock.yaml"
       - "nest-cli.json"
@@ -148,6 +147,22 @@ jobs:
             --wait \
             --timeout 5m \
             --history-max 10
+
+      - name: Show migration status
+        if: always()
+        run: |
+          kubectl get job "$HELM_RELEASE-migrate" \
+            --namespace "$HELM_NAMESPACE" \
+            --output wide || true
+          kubectl get pods \
+            --namespace "$HELM_NAMESPACE" \
+            --selector "job-name=$HELM_RELEASE-migrate" \
+            --output wide || true
+          kubectl logs "job/$HELM_RELEASE-migrate" \
+            --namespace "$HELM_NAMESPACE" \
+            --all-containers=true \
+            --prefix=true \
+            --pod-running-timeout=10s || true
 
       - name: Verify public health endpoint
         run: |

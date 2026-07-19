@@ -45,8 +45,10 @@ ships with working defaults for the API container, so no `.env` is required.
 docker compose up --build
 ```
 
-The API container runs `prisma migrate deploy` at startup, so the database is
-ready on first boot. A liveness endpoint is exposed at `GET /health`.
+Compose runs `prisma migrate deploy` in a one-time `migrate` service after
+PostgreSQL is healthy. The API starts only after that service completes
+successfully, so routine API restarts do not rerun migrations. A liveness
+endpoint is exposed at `GET /health`.
 
 The Compose-mode environment for the API service is set directly in
 `docker-compose.yml` so the local `.env` (which targets host-mode `localhost`)

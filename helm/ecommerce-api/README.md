@@ -77,13 +77,23 @@ Before using `values.prod.yaml`, replace:
 
 ## Migration job
 
-The chart includes an optional Prisma migration Job:
+The chart runs Prisma migrations in a one-time Kubernetes Job instead of API
+container startup. Local values use a post-install/post-upgrade hook because the
+release first needs to create its bundled PostgreSQL and Secret resources:
 
 ```yaml
 migrationJob:
   enabled: true
+  hookEvents: post-install,post-upgrade
 ```
 
-The current Docker entrypoint already runs `prisma migrate deploy`, so leave the
-Job disabled unless you intentionally move migrations out of `entrypoint.sh` or
-accept the redundant migration call.
+Production values use `pre-install,pre-upgrade` so a failed migration stops the
+new application rollout. The production Secret must already exist before Helm
+starts.
+
+Inspect the most recent migration:
+
+```bash
+kubectl get job ecommerce-api-migrate
+kubectl logs job/ecommerce-api-migrate
+```
